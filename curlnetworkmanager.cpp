@@ -3,7 +3,7 @@
 #include "curl/curl.h"
 #include "curlnetworkrequest.h"
 #include "curlnetworkreply.h"
-
+#include <QDebug>
 #include <QDir>
 
 CurlNetworkManager::CurlNetworkManager(QObject* parent)
@@ -19,29 +19,40 @@ CurlNetworkManager::~CurlNetworkManager()
     curl_global_cleanup();
 }
 
-CurlNetworkReply* CurlNetworkManager::get(QUrl url)
+CurlNetworkReply* CurlNetworkManager::get(CurlNetworkRequest request)
 {
-    CurlNetworkRequest request(url);
-    CurlNetworkReply* reply = new CurlNetworkReply(request);
-    reply->init_get();
+    if(!request.isValid()){
+        qDebug() << "CurlNetworkManager::get" << "request has invliad url";
+        return nullptr;
+    }
+
+    CurlNetworkReply* reply = new CurlNetworkReply(GET,request);
     _pool.start(reply);
     return reply;
 }
 
-CurlNetworkReply* CurlNetworkManager::post(QUrl url,const QByteArray &data)
+CurlNetworkReply* CurlNetworkManager::post(CurlNetworkRequest request,const QByteArray &data)
 {
-    CurlNetworkRequest request(url);
-    CurlNetworkReply* reply = new CurlNetworkReply(request);
-    reply->init_post(data);
+    if(!request.isValid()){
+        qDebug() << "CurlNetworkManager::get" << "request has invliad url";
+        return nullptr;
+    }
+
+    CurlNetworkReply* reply = new CurlNetworkReply(POST,request);
     _pool.start(reply);
     return reply;
 }
 
-CurlNetworkReply* CurlNetworkManager::downloadFile(QUrl url,QString savePath, bool autoResume)
+CurlNetworkReply* CurlNetworkManager::downloadFile(CurlNetworkRequest request,QString savePath, bool autoResume)
 {
-    CurlNetworkRequest request(url);
-    CurlNetworkReply* reply = new CurlNetworkReply(request);
-    reply->init_download(QDir::toNativeSeparators(savePath),autoResume);
+    if(!request.isValid()){
+        qDebug() << "CurlNetworkManager::get" << "request has invliad url";
+        return nullptr;
+    }
+
+    CurlNetworkReply* reply = new CurlNetworkReply(DOWNLOAD,request);
+    reply->setFilelocalPath(QDir::toNativeSeparators(savePath));
+    reply->setAutoResume(autoResume);
     _pool.start(reply);
     return reply;
 }

@@ -13,17 +13,17 @@ class CurlNetworkRequestPrivate;
 class CURLNETWORKSHARED_EXPORT CurlNetworkRequest
 {
 
-    enum KnownHeaders {
-        ContentTypeHeader,
-        ContentLengthHeader,
-        LocationHeader,
-        LastModifiedHeader,
-        CookieHeader,
-        SetCookieHeader,
-        ContentDispositionHeader,  // added for QMultipartMessage
-        UserAgentHeader,
-        ServerHeader
-    };
+//    enum KnownHeaders {
+//        ContentTypeHeader,
+//        ContentLengthHeader,
+//        LocationHeader,
+//        LastModifiedHeader,
+//        CookieHeader,
+//        SetCookieHeader,
+//        ContentDispositionHeader,  // added for QMultipartMessage
+//        UserAgentHeader,
+//        ServerHeader
+//    };
 //    enum Attribute {
 //        HttpStatusCodeAttribute,
 //        HttpReasonPhraseAttribute,
@@ -80,15 +80,17 @@ class CURLNETWORKSHARED_EXPORT CurlNetworkRequest
 //    };
 
 public:
-    explicit CurlNetworkRequest(const QUrl &url = QUrl());
+    CurlNetworkRequest(const QUrl &url = QUrl());
     ~CurlNetworkRequest();
+
+    bool isValid() const;
 
     QUrl url() const;
     void setUrl(const QUrl &url);
 
     // "cooked" headers
-    QVariant header(KnownHeaders header) const;
-    void setHeader(KnownHeaders header, const QVariant &value);
+//    QVariant header(KnownHeaders header) const;
+//    void setHeader(KnownHeaders header, const QVariant &value);
 
     // raw headers:
     bool hasRawHeader(const QByteArray &headerName) const;

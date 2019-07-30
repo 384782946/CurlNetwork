@@ -5,6 +5,7 @@
 #include <QUrl>
 #include <QObject>
 #include <QThreadPool>
+#include "curlnetworkrequest.h"
 
 class CurlNetworkReply;
 
@@ -14,11 +15,11 @@ public:
     CurlNetworkManager(QObject* parent = nullptr);
     ~CurlNetworkManager();
 
-    CurlNetworkReply* get(QUrl url);
+    CurlNetworkReply* get(CurlNetworkRequest request);
 
-    CurlNetworkReply* post(QUrl url,const QByteArray &data);
+    CurlNetworkReply* post(CurlNetworkRequest request,const QByteArray &data);
 
-    CurlNetworkReply* downloadFile(QUrl url,QString savePath,bool autoResume = true);
+    CurlNetworkReply* downloadFile(CurlNetworkRequest request,QString savePath,bool autoResume = true);
 
 private:
     QThreadPool _pool;

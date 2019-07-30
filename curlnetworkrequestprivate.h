@@ -9,10 +9,11 @@
 class CurlNetworkRequestPrivate
 {
 public:
-    CurlNetworkRequestPrivate();
+    CurlNetworkRequestPrivate(){
+    }
 
     QUrl url;
-    QMap<int,QVariant> headers;
+    //QMap<int,QVariant> knownHeaders;
     QMap<QByteArray,QByteArray> rawheaders;
     int timeout = 0;
 };

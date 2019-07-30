@@ -1,8 +1,7 @@
 SOURCES += \
         $$PWD/curlnetworkmanager.cpp \
     $$PWD/curlnetworkreply.cpp \
-    $$PWD/curlnetworkrequest.cpp \
-    $$PWD/curlnetworkrequestprivate.cpp
+    $$PWD/curlnetworkrequest.cpp
 
 HEADERS += \
         $$PWD/curlnetworkmanager.h \

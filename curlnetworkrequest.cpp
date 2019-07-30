@@ -12,6 +12,11 @@ CurlNetworkRequest::~CurlNetworkRequest()
 
 }
 
+bool CurlNetworkRequest::isValid() const
+{
+    return d->url.isValid();
+}
+
 QUrl CurlNetworkRequest::url() const
 {
     return d->url;
@@ -25,15 +30,15 @@ void CurlNetworkRequest::setUrl(const QUrl &url)
     d->url = url;
 }
 
-QVariant CurlNetworkRequest::header(CurlNetworkRequest::KnownHeaders header) const
-{
-    return d->headers.value((int)header);
-}
+//QVariant CurlNetworkRequest::header(CurlNetworkRequest::KnownHeaders header) const
+//{
+//    return d->knownHeaders.value((int)header);
+//}
 
-void CurlNetworkRequest::setHeader(CurlNetworkRequest::KnownHeaders header, const QVariant &value)
-{
-    d->headers[(int)header] = value;
-}
+//void CurlNetworkRequest::setHeader(CurlNetworkRequest::KnownHeaders header, const QVariant &value)
+//{
+//    d->knownHeaders[(int)header] = value;
+//}
 
 bool CurlNetworkRequest::hasRawHeader(const QByteArray &headerName) const
 {
@@ -42,7 +47,15 @@ bool CurlNetworkRequest::hasRawHeader(const QByteArray &headerName) const
 
 QList<QByteArray> CurlNetworkRequest::rawHeaderList() const
 {
-    return d->rawheaders.values();
+    QList<QByteArray> headers;
+    foreach(auto key,d->rawheaders.keys()){
+        auto v = d->rawheaders.value(key,"");
+        if(!key.isEmpty() && !v.isEmpty()){
+            headers.append(key + ":" + v);
+        }
+    }
+
+    return headers;
 }
 
 QByteArray CurlNetworkRequest::rawHeader(const QByteArray &headerName) const

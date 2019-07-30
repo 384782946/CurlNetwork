@@ -2,14 +2,17 @@
 
 #include <QDebug>
 #include <QFileInfo>
-
+#include <mutex>
 #include "curl/curl.h"
 
 static char errorBuffer[1024];
 
 int my_progress_callback(void *clientp,   double dltotal,   double dlnow,   double ultotal,   double ulnow)
 {
-    qDebug() << "download progress" << dltotal << dlnow;
+    double totalKb = dltotal/1024;
+    double nowKb = dlnow/1024;
+    qDebug() << "download progress" << (QString::number(totalKb,'f',3) + "kb")
+             << (QString::number(nowKb,'f',3) + "kb") ;
     //    if(HttpDownloadFile::instance()->httpRequestAborted()){
     //        qDebug() << "httpRequestAborted";
     //        return 1;
@@ -30,44 +33,29 @@ static size_t write_file(void *ptr, size_t size, size_t nmemb, void *stream)
     return written;
 }
 
-CurlNetworkReply::CurlNetworkReply(const CurlNetworkRequest& request)
+CurlNetworkReply::CurlNetworkReply(RequestType type,const CurlNetworkRequest& request)
+    :_type(type),_request(request)
 {
-    _curl = curl_easy_init();
-
-    Q_ASSERT_X(_curl,"CurlNetworkReply()","curl init error");
-
-    _errorCode = CURLE_OK;
-
-    _errorCode = curl_easy_setopt(_curl, CURLOPT_ERRORBUFFER, errorBuffer);
-
-    auto url = request.url().toString().toLatin1();
-
-    /* set URL to get here */
-    _errorCode = curl_easy_setopt(_curl, CURLOPT_URL, url.data());
-
-    /* Switch on full protocol/debug output while testing */
-    _errorCode = curl_easy_setopt(_curl, CURLOPT_VERBOSE, 1L);
-    _errorCode = curl_easy_setopt(_curl, CURLOPT_NOSIGNAL, 1L);
-    _errorCode = curl_easy_setopt(_curl, CURLOPT_CONNECTTIMEOUT, 10L);
-
-    int timeout = request.timeout();
-    if(timeout > 0){
-        curl_easy_setopt(_curl, CURLOPT_TIMEOUT, (long)timeout);
-    }
-
-    _errorCode = curl_easy_setopt(_curl, CURLOPT_PROGRESSDATA,NULL);
-    _errorCode = curl_easy_setopt(_curl, CURLOPT_NOPROGRESS, 0L);
-
-    /* SSL Options */
-    _errorCode = curl_easy_setopt(_curl, CURLOPT_SSL_VERIFYPEER, 0L);
-    _errorCode = curl_easy_setopt(_curl, CURLOPT_SSL_VERIFYHOST, 0L);
-    /* Provide CA Certs from http://curl.haxx.se/docs/caextract.html */
-    //curl_easy_setopt(curl_handle, CURLOPT_CAINFO, "ca-bundle.crt");
 }
 
 void CurlNetworkReply::run()
 {
     _responseStatus = -1;
+
+    init_common();
+
+    auto url = _request.url().toString().toLatin1();
+
+    /* set URL to get here */
+    _errorCode = curl_easy_setopt(_curl, CURLOPT_URL, url.data());
+
+    if( _type == GET){
+        init_get();
+    }else if(_type == POST){
+        init_post();
+    }else if(_type == DOWNLOAD){
+        init_download();
+    }
 
     /* get it! */
     _errorCode = curl_easy_perform(_curl);
@@ -101,6 +89,45 @@ QByteArray CurlNetworkReply::readAll()
     return QByteArray::fromStdString(_result);
 }
 
+void CurlNetworkReply::init_common()
+{
+    _curl = curl_easy_init();
+
+    Q_ASSERT_X(_curl,"CurlNetworkReply()","curl init error");
+
+    _errorCode = CURLE_OK;
+
+    _errorCode = curl_easy_setopt(_curl, CURLOPT_ERRORBUFFER, errorBuffer);
+
+    /* Switch on full protocol/debug output while testing */
+    _errorCode = curl_easy_setopt(_curl, CURLOPT_VERBOSE, 1L);
+    _errorCode = curl_easy_setopt(_curl, CURLOPT_NOSIGNAL, 1L);
+    _errorCode = curl_easy_setopt(_curl, CURLOPT_CONNECTTIMEOUT, 10L);
+
+    int timeout = _request.timeout();
+    if(timeout > 0){
+        curl_easy_setopt(_curl, CURLOPT_TIMEOUT, (long)timeout);
+    }
+
+    _errorCode = curl_easy_setopt(_curl, CURLOPT_PROGRESSDATA,NULL);
+    _errorCode = curl_easy_setopt(_curl, CURLOPT_NOPROGRESS, 0L);
+
+    /* SSL Options */
+    _errorCode = curl_easy_setopt(_curl, CURLOPT_SSL_VERIFYPEER, 0L);
+    _errorCode = curl_easy_setopt(_curl, CURLOPT_SSL_VERIFYHOST, 0L);
+
+    auto headerList = _request.rawHeaderList();
+    if(headerList.size()>0){
+        struct curl_slist *headers = NULL;
+
+        foreach(auto h,headerList){
+            headers = curl_slist_append(headers, h.data());
+        }
+
+        _errorCode =  curl_easy_setopt(_curl, CURLOPT_HTTPHEADER, headers);
+    }
+}
+
 void CurlNetworkReply::init_get()
 {
     _errorCode = curl_easy_setopt(_curl, CURLOPT_TIMEOUT, 20L);
@@ -108,20 +135,20 @@ void CurlNetworkReply::init_get()
     _errorCode = curl_easy_setopt(_curl, CURLOPT_WRITEDATA, &_result);
 }
 
-void CurlNetworkReply::init_post(const QByteArray& data)
+void CurlNetworkReply::init_post()
 {
     _errorCode = curl_easy_setopt(_curl, CURLOPT_TIMEOUT, 20L);
     _errorCode = curl_easy_setopt(_curl, CURLOPT_POST, 1L);
-    _errorCode = curl_easy_setopt(_curl, CURLOPT_POSTFIELDS,data.data());
+    _errorCode = curl_easy_setopt(_curl, CURLOPT_POSTFIELDS,_fieldData.data());
     _errorCode = curl_easy_setopt(_curl, CURLOPT_WRITEFUNCTION,write_buffer);
     _errorCode = curl_easy_setopt(_curl, CURLOPT_WRITEDATA, &_result);
 }
 
-void CurlNetworkReply::init_download(const QString& path,bool autoResume)
+void CurlNetworkReply::init_download()
 {
-    auto stdPath = path.toStdString();
+    auto stdPath = _filelocalPath.toStdString();
 
-    if(autoResume){
+    if(autoResume()){
         /* open the file */
         _file = fopen(stdPath.c_str(), "ab");
         if (!_file) {
@@ -133,7 +160,7 @@ void CurlNetworkReply::init_download(const QString& path,bool autoResume)
         fseek(_file,0L, SEEK_END);
 
         //请求范围，断点续传
-        QFileInfo fi(path);
+        QFileInfo fi(_filelocalPath);
         qint64 size = 0;
         if(fi.exists()){
             size = fi.size();
@@ -163,4 +190,46 @@ void CurlNetworkReply::init_download(const QString& path,bool autoResume)
 void CurlNetworkReply::setErrorString(const QString &errorString)
 {
     _errorString = errorString;
+}
+
+void CurlNetworkReply::debugCurlError(QString message,int eCode)
+{
+    if(eCode != CURLE_OK){
+        qDebug() << "[CurlError]" << message << eCode << errorBuffer;
+    }
+}
+
+QByteArray CurlNetworkReply::fieldData() const
+{
+    return _fieldData;
+}
+
+void CurlNetworkReply::setFieldData(const QByteArray &fieldData)
+{
+    _fieldData = fieldData;
+}
+
+bool CurlNetworkReply::autoResume() const
+{
+    return _autoResume;
+}
+
+void CurlNetworkReply::setAutoResume(bool autoResume)
+{
+    _autoResume = autoResume;
+}
+
+QString CurlNetworkReply::filelocalPath() const
+{
+    return _filelocalPath;
+}
+
+void CurlNetworkReply::setFilelocalPath(const QString &filelocalPath)
+{
+    _filelocalPath = filelocalPath;
+}
+
+RequestType CurlNetworkReply::type() const
+{
+    return _type;
 }
