@@ -36,11 +36,13 @@ static size_t write_file(void *ptr, size_t size, size_t nmemb, void *stream)
 CurlNetworkReply::CurlNetworkReply(RequestType type,const CurlNetworkRequest& request)
     :_type(type),_request(request)
 {
+    this->setAutoDelete(false);
 }
 
 void CurlNetworkReply::run()
 {
     _responseStatus = -1;
+    _errorCode = CURLE_OK;
 
     init_common();
 
@@ -95,26 +97,24 @@ void CurlNetworkReply::init_common()
 
     Q_ASSERT_X(_curl,"CurlNetworkReply()","curl init error");
 
-    _errorCode = CURLE_OK;
-
     _errorCode = curl_easy_setopt(_curl, CURLOPT_ERRORBUFFER, errorBuffer);
 
     /* Switch on full protocol/debug output while testing */
     _errorCode = curl_easy_setopt(_curl, CURLOPT_VERBOSE, 1L);
     _errorCode = curl_easy_setopt(_curl, CURLOPT_NOSIGNAL, 1L);
     _errorCode = curl_easy_setopt(_curl, CURLOPT_CONNECTTIMEOUT, 10L);
+    _errorCode = curl_easy_setopt(_curl, CURLOPT_PROGRESSDATA,NULL);
+    _errorCode = curl_easy_setopt(_curl, CURLOPT_NOPROGRESS, 0L);
+    //_errorCode = curl_easy_setopt(_curl, CURLOPT_FOLLOWLOCATION, true);
+
+    /* SSL Options */
+    _errorCode = curl_easy_setopt(_curl, CURLOPT_SSL_VERIFYPEER, 0L);
+    _errorCode = curl_easy_setopt(_curl, CURLOPT_SSL_VERIFYHOST, 0L);
 
     int timeout = _request.timeout();
     if(timeout > 0){
         curl_easy_setopt(_curl, CURLOPT_TIMEOUT, (long)timeout);
     }
-
-    _errorCode = curl_easy_setopt(_curl, CURLOPT_PROGRESSDATA,NULL);
-    _errorCode = curl_easy_setopt(_curl, CURLOPT_NOPROGRESS, 0L);
-
-    /* SSL Options */
-    _errorCode = curl_easy_setopt(_curl, CURLOPT_SSL_VERIFYPEER, 0L);
-    _errorCode = curl_easy_setopt(_curl, CURLOPT_SSL_VERIFYHOST, 0L);
 
     auto headerList = _request.rawHeaderList();
     if(headerList.size()>0){
