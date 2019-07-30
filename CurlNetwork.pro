@@ -4,14 +4,15 @@
 #
 #-------------------------------------------------
 
-QT       -= gui
+#QT       -= gui
+QT += core gui network concurrent
 
 TARGET = CurlNetwork
 TEMPLATE = app
 
 INCLUDEPATH += $$PWD/libcurl
 
-DEFINES += CURLNETWORK_SOURCECODE #CURLNETWORK_LIBRARY
+DEFINES += CURLNETWORK_SOURCECODE CURL_STATICLIB #CURLNETWORK_LIBRARY
 
 # The following define makes your compiler emit warnings if you use
 # any feature of Qt which as been marked as deprecated (the exact warnings
@@ -24,7 +25,9 @@ DEFINES += QT_DEPRECATED_WARNINGS
 # You can also select to disable deprecated APIs only up to a certain version of Qt.
 #DEFINES += QT_DISABLE_DEPRECATED_BEFORE=0x060000    # disables all the APIs deprecated before Qt 6.0.0
 
-LIBS += -L$$PWD/libcurl -llibcurl_debug
+LIBS += -L$$PWD/libcurl -llibcurl_a
+
+SOURCES += $$PWD/main.cpp
 
 unix {
     target.path = /usr/lib
